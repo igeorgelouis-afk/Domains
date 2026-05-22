@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Seized Domains by Month and Year</title>
+  <style>html,body{height:100%;margin:0;font-family:Arial,Helvetica,sans-serif}body{display:flex;flex-direction:column;min-height:100vh;padding:8px;box-sizing:border-box;padding-bottom:36px}h2{text-align:center;margin:8px 0;font-size:1.6rem}#chartContainer{flex:1;min-height:0}canvas{width:100%;height:100%;display:block}.brand{position:absolute;left:12px;top:10px;background:transparent;color:#1e66c9;padding:4px 8px;border-radius:6px;font-weight:700;font-size:1.2rem;box-shadow:none;display:inline-flex;align-items:center;gap:8px}.page-header{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:6px 8px}.page-header h2{flex:1;text-align:center;margin:0;font-size:2rem}.summary-row{display:flex;width:100%;justify-content:space-between;align-items:center;gap:12px}.summary-box{background:#f5f7fa;border:1px solid #e1e4e8;padding:8px 12px;border-radius:6px;font-weight:600;min-width:140px;text-align:center;margin-right:12px}.year-tiles{display:flex;flex-wrap:wrap;gap:8px;align-items:center;justify-content:center;margin:8px 0}.year-tile{padding:6px 10px;border-radius:6px;border:1px solid #ccc;background:#fff;cursor:pointer;font-weight:500}.year-tile.active{background:#4bc0c0;color:#fff;border-color:#4bc0c0}.year-tile:focus{outline:2px solid #85e0e0}.filter{display:none}.page-footer{position:fixed;right:12px;bottom:8px;color:#556;font-size:0.78rem;background:transparent;border:none;padding:4px 6px;text-align:right;max-width:40%;white-space:normal;box-shadow:none}</style>
+</head>
+<body>
+  <div class="brand" role="img" aria-label="Digital Crimes Unit logo"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1e66c9" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"></circle><path d="M2 12h20"></path><path d="M12 2a15 15 0 0 1 0 20"></path></svg>Digital Crimes Unit</div>
+  <header class="page-header">
+    <h2>Seized Domains by Month and Year</h2>
+    <div id="yearTiles" class="year-tiles" role="group" aria-label="Year filter"></div>
+    <div class="summary-row">
+      <div class="summary-box" id="totalBox" aria-live="polite">Total: 0</div>
+      <div class="filter">
+        <label for="yearFilter" style="display:none">Year</label>
+        <select id="yearFilter" multiple size="5" title="Select one or more years"><option value="All">All years</option></select>
+      </div>
+    </div>
+  </header>
+  <div id="chartContainer">
+    <canvas id="chart"></canvas>
+  </div>
+
+    <footer class="page-footer">If you need more details, please contact Derek Richardson</footer>
+
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script>
+    // Parsed data provided (confirmed)
+    const labels = [
+      "2016-08","2016-11","2017-01","2017-02","2017-03","2017-08","2017-09","2017-10","2017-12",
+      "2018-01","2018-04","2018-08","2018-12","2019-01","2019-02","2019-03","2019-05","2019-06","2019-10","2019-12",
+      "2020-01","2020-03","2020-07","2020-12","2021-12","2022-02","2022-04","2022-05","2022-08",
+      "2023-01","2023-04","2023-05","2023-06","2023-10",
+      "2024-03","2024-04","2024-05","2024-08","2024-09","2024-11",
+      "2025-01","2025-03","2025-04","2025-05","2025-06","2025-08","2025-09","2025-11","2025-12",
+      "2026-01","2026-02","2026-03","2026-04","2026-05"
+    ];
+    const dataPoints = [
+      40,19,42,6,1,2,1,48,3,
+      5990,1,6,5,1,1,99,11,10,6,5,
+      5,14,25,6,4,14,7,4,15,
+      11,108,142,66,31,
+      12,14,6,15,66,305,
+      9,12,12,1381,3,335,19,217,142,
+      53,30,21,52,1
+    ];
+    const fullLabels = labels.slice();
+    const fullData = dataPoints.slice();
+
+    // Chronological Month-Year series: show month name on first line and year on second line (year shown only at first occurrence)
+    const monthNames = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    function formatChronoLabels(labelArray){
+      const out = [];
+      let lastYear = null;
+      for(let i=0;i<labelArray.length;i++){
+        const parts = labelArray[i].split('-');
+        const y = parts[0];
+        const m = parts[1];
+        const monthLabel = monthNames[parseInt(m,10)-1] || m;
+        const yearLabel = (y !== lastYear) ? y : '';
+        out.push([monthLabel, yearLabel]);
+        lastYear = y;
+      }
+      return out;
+    }
+
+    // Initial chronological labels & data
+    let currentLabels = formatChronoLabels(fullLabels);
+    let currentData = fullData.slice();
+
+    const ctx = document.getElementById('chart').getContext('2d');
+    const chart = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: currentLabels,
+        datasets: [{
+          label: 'Seized Domains',
+          data: currentData,
+          borderColor: 'rgba(255, 159, 64, 1)',
+          backgroundColor: 'rgba(255, 159, 64, 0.12)',
+          tension: 0.2,
+          pointRadius: 4,
+          pointHoverRadius: 7,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { title: { display: true, text: 'Month|Year' }, ticks: { autoSkip: false } },
+          y: { title: { display: true, text: 'Distinct Domains' }, beginAtZero: true }
+        },
+        plugins: {
+          tooltip: { mode: 'index', intersect: false }
+        }
+      }
+    });
+
+    // Populate year filter as tiles and handle changes — selecting tiles filters the chronological series
+    (function(){
+      const tilesContainer = document.getElementById('yearTiles');
+      const years = Array.from(new Set(fullLabels.map(l=>l.slice(0,4)))).sort();
+      const allYearsLabel = 'All';
+      const selected = new Set([allYearsLabel]);
+
+      function makeTile(label, isAll){
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'year-tile';
+        btn.dataset.year = label;
+        btn.textContent = isAll ? 'All years' : label;
+        if(isAll) btn.classList.add('active');
+        btn.addEventListener('click', ()=>{
+          if(isAll){
+            // select only All
+            selected.clear(); selected.add(allYearsLabel);
+            // reset active states
+            Array.from(tilesContainer.querySelectorAll('.year-tile')).forEach(t=>t.classList.remove('active'));
+            btn.classList.add('active');
+          } else {
+            // toggle this year
+            if(selected.has(label)){
+              selected.delete(label);
+              btn.classList.remove('active');
+            } else {
+              selected.add(label);
+              btn.classList.add('active');
+            }
+            // if any specific year selected, remove All
+            if(selected.has(allYearsLabel) && selected.size>1){ selected.delete(allYearsLabel); const allBtn = tilesContainer.querySelector('[data-year="All"]'); if(allBtn) allBtn.classList.remove('active'); }
+            // if none selected, revert to All
+            if(selected.size === 0){ selected.add(allYearsLabel); const allBtn = tilesContainer.querySelector('[data-year="All"]'); if(allBtn) allBtn.classList.add('active'); }
+          }
+          applyFilterAndUpdate();
+        });
+        return btn;
+      }
+
+      // build tiles: All first, then years
+      tilesContainer.innerHTML = '';
+      tilesContainer.appendChild(makeTile(allYearsLabel, true));
+      years.forEach(y=> tilesContainer.appendChild(makeTile(y,false)));
+
+      function getSelectedYears(){
+        if(selected.has(allYearsLabel)) return ['All'];
+        return Array.from(selected);
+      }
+
+      function applyFilterAndUpdate(){
+        const chosen = getSelectedYears();
+        let filteredLabels = [];
+        let filteredData = [];
+        if(chosen.length === 0 || chosen.includes('All')){
+          filteredLabels = fullLabels.slice();
+          filteredData = fullData.slice();
+        } else {
+          for(let i=0;i<fullLabels.length;i++){
+            const y = fullLabels[i].slice(0,4);
+            if(chosen.includes(y)){
+              filteredLabels.push(fullLabels[i]);
+              filteredData.push(fullData[i]);
+            }
+          }
+        }
+        updateChartAndTotal(filteredLabels, filteredData);
+      }
+
+      // helper update function (re-uses from above)
+      function updateChartAndTotal(filteredLabels, filteredData){
+        chart.data.labels = formatChronoLabels(filteredLabels);
+        chart.data.datasets[0].data = filteredData;
+        chart.update();
+        const total = filteredData.reduce((s,v)=>s + (Number(v)||0), 0);
+        const totalBox = document.getElementById('totalBox');
+        if(totalBox) totalBox.textContent = 'Total: ' + total.toLocaleString();
+      }
+
+      // initial state
+      applyFilterAndUpdate();
+    })();
+
+  </script>
+</body>
+</html>
